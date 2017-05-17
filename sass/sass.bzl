@@ -36,8 +36,17 @@ def _sass_binary_impl(ctx):
     sassc = ctx.file._sassc
     options = [
         "--style={0}".format(ctx.attr.output_style),
-        "--sourcemap",
     ]
+
+    # Outputs css file
+    outputs = [ctx.outputs.css_file]
+
+    # Check if generating sourcemap files
+    if ctx.attr.sourcemap:
+        # Generate sourcemap files
+        options.append("--sourcemap")
+        # Outputs the css.map file
+        outputs.append("%{name}.css.map")
 
     # Load up all the transitive sources as dependent includes.
     transitive_sources = collect_transitive_sources(ctx)
@@ -49,7 +58,7 @@ def _sass_binary_impl(ctx):
         executable = sassc,
         arguments = options + [ctx.file.src.path, ctx.outputs.css_file.path],
         mnemonic = "SassCompiler",
-        outputs = [ctx.outputs.css_file, ctx.outputs.css_map_file],
+        outputs = outputs,
     )
 
 sass_deps_attr = attr.label_list(
@@ -66,6 +75,9 @@ sass_library = rule(
         ),
         "deps": sass_deps_attr,
     },
+    outputs = {
+        "css_file": "%{name}.css",
+    },
     implementation = _sass_library_impl,
 )
 
@@ -73,8 +85,11 @@ sass_binary = rule(
     attrs = {
         "src": attr.label(
             allow_files = SASS_FILETYPES,
-            mandatory = True,
+            mandatory   = True,
             single_file = True,
+        ),
+        "sourcemap": attr.bool(
+            default = True,
         ),
         "output_style": attr.string(default = "compressed"),
         "deps": sass_deps_attr,
@@ -84,10 +99,6 @@ sass_binary = rule(
             cfg = "host",
             single_file = True,
         ),
-    },
-    outputs = {
-        "css_file": "%{name}.css",
-        "css_map_file": "%{name}.css.map",
     },
     implementation = _sass_binary_impl,
 )
